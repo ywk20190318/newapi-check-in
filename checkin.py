@@ -199,6 +199,7 @@ def execute_check_in(client, account_name: str, provider_config, headers: dict):
 					print(f'[SUCCESS] {account_name}: Already checked in today')
 					return True
 				print(f'[FAILED] {account_name}: Check-in failed - {error_msg}')
+				print(f'[DEBUG] {account_name}: Response body: {response.text[:200]}')
 				return False
 		except json.JSONDecodeError:
 			# 如果不是 JSON 响应，检查是否包含成功标识
@@ -207,9 +208,11 @@ def execute_check_in(client, account_name: str, provider_config, headers: dict):
 				return True
 			else:
 				print(f'[FAILED] {account_name}: Check-in failed - Invalid response format')
+				print(f'[DEBUG] {account_name}: Response body: {response.text[:200]}')
 				return False
 	else:
 		print(f'[FAILED] {account_name}: Check-in failed - HTTP {response.status_code}')
+		print(f'[DEBUG] {account_name}: Response body: {response.text[:200]}')
 		return False
 
 

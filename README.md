@@ -277,8 +277,8 @@
   - `sign_in_path: "/api/user/sign_in"`
 - `callxyq`：
   - `bypass_method: null`（直接使用用户 cookies 执行签到）
-  - `sign_in_path: "/api/user/checkin?month={month}"`（GET 请求，月份自动填充）
-  - `check_in_method: "GET"`
+  - `sign_in_path: "/api/user/checkin"`（POST 请求）
+  - `check_in_method: "POST"`
 
 **重要提示**：
 
