@@ -179,6 +179,14 @@
       "session": "xyz789session"
     },
     "api_user": "user456"
+  },
+  {
+    "name": "CallXYQ 账号",
+    "provider": "callxyq",
+    "cookies": {
+      "session": "xyz789session"
+    },
+    "api_user": "user789"
   }
 ]
 ```
@@ -242,6 +250,7 @@
   - `"waf_cookies"`：使用 Playwright 打开浏览器获取 WAF cookies 后再执行签到
   - 不设置或 `null`：直接使用用户 cookies 执行签到（适合无 WAF 保护的网站）
 - `waf_cookie_names` (可选)：绕过 WAF 所需 cookie 的名称列表，`bypass_method` 为 `waf_cookies` 时必须设置
+- `check_in_method` (可选)：签到接口请求方式，支持 `"GET"` 或 `"POST"`，默认为 `"POST"`；`sign_in_path` 中可使用 `{month}` 占位符，脚本会自动替换为当前年月（如 `2026-03`）
 
 **配置示例**（完整）：
 
@@ -266,6 +275,10 @@
 - `agentrouter`：
   - `bypass_method: null`（直接使用用户 cookies 执行签到）
   - `sign_in_path: "/api/user/sign_in"`
+- `callxyq`：
+  - `bypass_method: null`（直接使用用户 cookies 执行签到）
+  - `sign_in_path: "/api/user/checkin?month={month}"`（GET 请求，月份自动填充）
+  - `check_in_method: "GET"`
 
 **重要提示**：
 

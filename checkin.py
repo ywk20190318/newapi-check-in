@@ -174,8 +174,14 @@ def execute_check_in(client, account_name: str, provider_config, headers: dict):
 	checkin_headers = headers.copy()
 	checkin_headers.update({'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest'})
 
-	sign_in_url = f'{provider_config.domain}{provider_config.sign_in_path}'
-	response = client.post(sign_in_url, headers=checkin_headers, timeout=30)
+	# 替换路径中的动态参数（如 {month}）
+	sign_in_path = provider_config.sign_in_path.format(month=datetime.now().strftime('%Y-%m'))
+	sign_in_url = f'{provider_config.domain}{sign_in_path}'
+
+	if provider_config.check_in_method == 'GET':
+		response = client.get(sign_in_url, headers=checkin_headers, timeout=30)
+	else:
+		response = client.post(sign_in_url, headers=checkin_headers, timeout=30)
 
 	print(f'[RESPONSE] {account_name}: Response status code {response.status_code}')
 

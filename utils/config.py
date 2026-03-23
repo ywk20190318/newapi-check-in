@@ -21,6 +21,7 @@ class ProviderConfig:
 	api_user_key: str = 'new-api-user'
 	bypass_method: Literal['waf_cookies'] | None = None
 	waf_cookie_names: List[str] | None = None
+	check_in_method: Literal['GET', 'POST'] = 'POST'
 
 	def __post_init__(self):
 		required_waf_cookies = set()
@@ -55,6 +56,7 @@ class ProviderConfig:
 			api_user_key=data.get('api_user_key', 'new-api-user'),
 			bypass_method=data.get('bypass_method'),
 			waf_cookie_names=data.get('waf_cookie_names'),
+			check_in_method=data.get('check_in_method', 'POST'),
 		)
 
 	def needs_waf_cookies(self) -> bool:
@@ -85,6 +87,7 @@ class AppConfig:
 				api_user_key='new-api-user',
 				bypass_method='waf_cookies',
 				waf_cookie_names=['acw_tc', 'cdn_sec_tc', 'acw_sc__v2'],
+				check_in_method='POST',
 			),
 			'agentrouter': ProviderConfig(
 				name='agentrouter',
@@ -95,6 +98,18 @@ class AppConfig:
 				api_user_key='new-api-user',
 				bypass_method='waf_cookies',
 				waf_cookie_names=['acw_tc'],
+				check_in_method='POST',
+			),
+			'callxyq': ProviderConfig(
+				name='callxyq',
+				domain='https://callxyq.xyz',
+				login_path='/console/personal',
+				sign_in_path='/api/user/checkin?month={month}',
+				user_info_path='/api/user/self',
+				api_user_key='new-api-user',
+				bypass_method=None,
+				waf_cookie_names=None,
+				check_in_method='GET',
 			),
 		}
 
