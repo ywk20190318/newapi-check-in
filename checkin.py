@@ -129,6 +129,37 @@ async def get_waf_cookies_with_playwright(account_name: str, login_url: str, req
 				return None
 
 
+def login_with_credentials(client, account_name: str, provider_config, username: str, password: str) -> bool:
+	"""使用用户名和密码登录，将会话令牌写入 client.cookies"""
+	login_url = f'{provider_config.domain}/api/user/login'
+	print(f'[AUTH] {account_name}: Logging in with credentials...')
+	try:
+		response = client.post(
+			login_url,
+			json={'username': username, 'password': password},
+			headers={
+				'Content-Type': 'application/json',
+				'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+			},
+			timeout=30,
+		)
+		if response.status_code == 200:
+			data = response.json()
+			if data.get('success'):
+				token = data.get('data', {}).get('token', '')
+				if token:
+					client.cookies.set('session', token)
+					print(f'[AUTH] {account_name}: Login successful, session token obtained')
+					return True
+			error_msg = data.get('message', 'Unknown error')
+			print(f'[FAILED] {account_name}: Login failed - {error_msg}')
+		else:
+			print(f'[FAILED] {account_name}: Login failed - HTTP {response.status_code}')
+	except Exception as e:
+		print(f'[FAILED] {account_name}: Login error - {str(e)[:50]}{"..." if len(str(e)) > 50 else ""}')
+	return False
+
+
 def get_user_info(client, headers, user_info_url: str):
 	"""获取用户信息"""
 	try:
@@ -261,19 +292,43 @@ async def check_in_account(account: AccountConfig, account_index: int, app_confi
 
 	print(f'[INFO] {account_name}: Using provider "{account.provider}" ({provider_config.domain})')
 
-	user_cookies = parse_cookies(account.cookies)
-	if not user_cookies:
-		print(f'[FAILED] {account_name}: Invalid configuration format')
+	# 确定认证方式（优先级：access_token > username/password > cookies）
+	if account.has_access_token():
+		print(f'[AUTH] {account_name}: Using access token authentication')
+	elif account.has_credentials():
+		print(f'[AUTH] {account_name}: Using username/password authentication')
+	elif account.has_cookies():
+		print(f'[AUTH] {account_name}: Using cookie authentication')
+	else:
+		print(f'[FAILED] {account_name}: No valid authentication method configured')
 		return False, None
 
-	all_cookies = await prepare_cookies(account_name, provider_config, user_cookies)
-	if not all_cookies:
-		return False, None
+	# 只有使用 cookies 时才需要 WAF bypass
+	if account.has_cookies() and not account.has_access_token() and not account.has_credentials():
+		user_cookies = parse_cookies(account.cookies)
+		all_cookies = await prepare_cookies(account_name, provider_config, user_cookies)
+		if not all_cookies:
+			return False, None
+	else:
+		all_cookies = {}
 
 	client = httpx.Client(http2=True, timeout=30.0)
 
 	try:
-		client.cookies.update(all_cookies)
+		# 应用认证
+		if account.has_access_token():
+			# 使用访问令牌：设置为 session cookie 并添加 Authorization 头
+			client.cookies.set('session', account.access_token or '')
+		elif account.has_credentials():
+			# 使用用户名密码登录获取会话
+			success = login_with_credentials(
+				client, account_name, provider_config, account.username or '', account.password or ''
+			)
+			if not success:
+				return False, None
+		else:
+			# 使用 cookies（可能已包含 WAF cookies）
+			client.cookies.update(all_cookies)
 
 		headers = {
 			'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
@@ -460,7 +515,9 @@ async def main():
 
 		time_info = f'[时间] 执行时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}'
 
-		notify_content = '\n\n'.join([time_info, '\n━━━━━━━━━━━━━━━━━━━━\n'.join(notification_content), '\n'.join(summary)])
+		notify_content = '\n\n'.join(
+			[time_info, '\n━━━━━━━━━━━━━━━━━━━━\n'.join(notification_content), '\n'.join(summary)]
+		)
 
 		print(notify_content)
 		notify.push_message('New api签到通知', notify_content, msg_type='text')

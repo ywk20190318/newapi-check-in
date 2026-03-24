@@ -150,10 +150,13 @@ class AppConfig:
 class AccountConfig:
 	"""账号配置"""
 
-	cookies: dict | str
 	api_user: str
 	provider: str = 'anyrouter'
 	name: str | None = None
+	cookies: dict | str = ''
+	username: str | None = None
+	password: str | None = None
+	access_token: str | None = None
 
 	@classmethod
 	def from_dict(cls, data: dict, index: int) -> 'AccountConfig':
@@ -161,11 +164,33 @@ class AccountConfig:
 		provider = data.get('provider', 'anyrouter')
 		name = data.get('name', f'Account {index + 1}')
 
-		return cls(cookies=data['cookies'], api_user=data['api_user'], provider=provider, name=name if name else None)
+		return cls(
+			api_user=data['api_user'],
+			provider=provider,
+			name=name if name else None,
+			cookies=data.get('cookies', ''),
+			username=data.get('username'),
+			password=data.get('password'),
+			access_token=data.get('access_token'),
+		)
 
 	def get_display_name(self, index: int) -> str:
 		"""获取显示名称"""
 		return self.name if self.name else f'Account {index + 1}'
+
+	def has_credentials(self) -> bool:
+		"""判断是否配置了用户名密码"""
+		return bool(self.username and self.password)
+
+	def has_access_token(self) -> bool:
+		"""判断是否配置了访问令牌"""
+		return bool(self.access_token)
+
+	def has_cookies(self) -> bool:
+		"""判断是否配置了 cookies"""
+		if isinstance(self.cookies, dict):
+			return bool(self.cookies)
+		return bool(str(self.cookies).strip())
 
 
 def load_accounts_config() -> list[AccountConfig] | None:
@@ -188,8 +213,16 @@ def load_accounts_config() -> list[AccountConfig] | None:
 				print(f'ERROR: Account {i + 1} configuration format is incorrect')
 				return None
 
-			if 'cookies' not in account_dict or 'api_user' not in account_dict:
-				print(f'ERROR: Account {i + 1} missing required fields (cookies, api_user)')
+			if 'api_user' not in account_dict:
+				print(f'ERROR: Account {i + 1} missing required field (api_user)')
+				return None
+
+			has_cookies = 'cookies' in account_dict and account_dict['cookies']
+			has_credentials = 'username' in account_dict and 'password' in account_dict
+			has_token = 'access_token' in account_dict and account_dict['access_token']
+
+			if not has_cookies and not has_credentials and not has_token:
+				print(f'ERROR: Account {i + 1} must provide one of: cookies, (username + password), or access_token')
 				return None
 
 			if 'name' in account_dict and not account_dict['name']:
