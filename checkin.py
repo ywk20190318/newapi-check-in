@@ -94,6 +94,13 @@ def apply_access_token_auth(client: httpx.Client, headers: dict,
     headers['x-api-key'] = token
 
 
+def clear_token_auth(headers: dict):
+    """清理 token 相关认证头，避免影响回退认证。"""
+    headers.pop('Authorization', None)
+    headers.pop('token', None)
+    headers.pop('x-api-key', None)
+
+
 def _extract_session_token(payload: dict) -> str:
     """从登录响应中提取 session token。"""
     data = payload.get('data')
@@ -305,7 +312,19 @@ def get_user_info(client, headers, user_info_url: str):
         response = client.get(user_info_url, headers=headers, timeout=30)
 
         if response.status_code == 200:
-            data = response.json()
+            try:
+                data = response.json()
+            except json.JSONDecodeError:
+                content_type = response.headers.get('content-type', 'unknown')
+                body_preview = response.text[:120].replace('\n', ' ').replace(
+                    '\r', ' ')
+                return {
+                    'success': False,
+                    'error': (
+                        'Failed to get user info: invalid JSON, '
+                        f'content-type={content_type}, body={body_preview}')
+                }
+
             if data.get('success'):
                 user_data = data.get('data', {})
                 quota = round(user_data.get('quota', 0) / 500000, 2)
@@ -562,6 +581,10 @@ async def check_in_account(account: AccountConfig, account_index: int,
                 print(
                     f'[AUTH] {account_name}: Access token did not work for panel API, fallback to cookie if provided'
                 )
+
+                # 回退前清理 token 认证头与 token session，避免干扰账号密码/cookie 鉴权
+                clear_token_auth(headers)
+                client.cookies.pop('session', None)
 
                 if account.has_credentials():
                     print(
