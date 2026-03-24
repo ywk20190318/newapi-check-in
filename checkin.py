@@ -320,9 +320,14 @@ def get_user_info(client, headers, user_info_url: str):
                     'display':
                     f':money: Current balance: ${quota}, Used: ${used_quota}',
                 }
+        content_type = response.headers.get('content-type', 'unknown')
+        body_preview = response.text[:120].replace('\n',
+                                                   ' ').replace('\r', ' ')
         return {
-            'success': False,
-            'error': f'Failed to get user info: HTTP {response.status_code}'
+            'success':
+            False,
+            'error': (f'Failed to get user info: HTTP {response.status_code}, '
+                      f'content-type={content_type}, body={body_preview}')
         }
     except Exception as e:
         return {
@@ -487,8 +492,8 @@ async def check_in_account(account: AccountConfig, account_index: int,
         )
         return False, None, None
 
-    # WAF 场景：cookies/账号密码均可能需要预置 WAF cookies
-    if provider_config.needs_waf_cookies() and not account.has_access_token():
+    # WAF 场景：无论 token/账号密码/cookies，都先预置 WAF cookies
+    if provider_config.needs_waf_cookies():
         user_cookies = parse_cookies(
             account.cookies) if account.has_cookies() else {}
         all_cookies = await prepare_cookies(account_name, provider_config,
@@ -772,7 +777,8 @@ async def main():
         ])
 
         print(notify_content)
-        notify.push_message('New api签到通知', notify_content, msg_type='text')
+        notify_title = f'New api签到({success_count}/{total_count})'
+        notify.push_message(notify_title, notify_content, msg_type='text')
         print('[NOTIFY] Notification sent due to failures or balance changes')
     else:
         print(
