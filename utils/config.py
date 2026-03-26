@@ -122,6 +122,17 @@ class AppConfig:
 				waf_cookie_names=None,
 				check_in_method='POST',
 			),
+			'gemai': ProviderConfig(
+				name='gemai',
+				domain='https://api.gemai.cc',
+				login_path='/console/personal',
+				sign_in_path='/api/user/checkin',
+				user_info_path='/api/user/self',
+				api_user_key='new-api-user',
+				bypass_method=None,
+				waf_cookie_names=None,
+				check_in_method='POST',
+			),
 		}
 
 		# 尝试从环境变量加载自定义 providers
